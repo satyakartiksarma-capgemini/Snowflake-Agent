@@ -201,39 +201,39 @@ export default function App() {
   // const checkBackendHealth = async (): Promise<boolean> => {
   //   try {
   //     // Use the docs endpoint or root endpoint to check if backend is ready
-      
+
 
   //     const headers = {
   //       Authorization: "Bearer ", // Replace with secure token handling
   //       "Content-Type": "application/json",
   //       Accept: "text/event-stream"
   //     };
-      // const response = await fetch(url, {
-      //   method: "POST",
-      //   headers: headers,
-      //   body: JSON.stringify({
-      //     agent: "SNOWFLAKE_INTELLIGENCE.AGENTS.HIL_SF_IDEA",
-      //     messages: [{
-      //       role: "user",
-      //       content: [{
-      //         type: "text",
+  // const response = await fetch(url, {
+  //   method: "POST",
+  //   headers: headers,
+  //   body: JSON.stringify({
+  //     agent: "SNOWFLAKE_INTELLIGENCE.AGENTS.HIL_SF_IDEA",
+  //     messages: [{
+  //       role: "user",
+  //       content: [{
+  //         type: "text",
 
-      //       }]
-      //     }],
+  //       }]
+  //     }],
 
-      //     context: {
-      //       warehouse: "MY_WH",
-      //       database: "MY_DB",
-      //       schema: "PUBLIC"
-      //     },
+  //     context: {
+  //       warehouse: "MY_WH",
+  //       database: "MY_DB",
+  //       schema: "PUBLIC"
+  //     },
 
-      //     options: {
-      //       allow_execution: true
-      //     }
+  //     options: {
+  //       allow_execution: true
+  //     }
 
-      //   }),
-      // });
-      // return response.ok;
+  //   }),
+  // });
+  // return response.ok;
   //   } catch (error) {
   //     console.log("Backend not ready yet:", error);
   //     return false;
@@ -436,7 +436,7 @@ export default function App() {
     // ✅ Extract data
     const { textParts, agent, finalReportWithCitations, functionCall, functionResponse, sources } = extractDataFromSSE(jsonData);
 
-    
+
 
     // ✅ Track current agent
     if (agent && agent !== currentAgentRef.current) {
@@ -685,136 +685,136 @@ export default function App() {
         let finalApiUrl = selectedApiUrl;
 
         // Check if URL already contains ":run"
-        if (finalApiUrl === "snowflake") {
-          finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/HIL_SF_IDEA:run`
-        }
-        else if (finalApiUrl === "realtime") {
-          if (interactionMode === "human") {
-            finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/HIL_SF_IDEA_API:run`
+
+        if (finalApiUrl === 'snowflake') {
+          finalApiUrl = `${SF_BASE.replace(/\/+$/, '')}/api/v2/databases/${encodeURIComponent(SF_DB)}/schemas/${encodeURIComponent(SF_SCHEMA)}/agents/HIL_SF_IDEA:run`;
+        } else if (finalApiUrl === 'realtime') {
+          if (interactionMode === 'human') {
+            finalApiUrl = `${SF_BASE.replace(/\/+$/, '')}/api/v2/databases/${encodeURIComponent(SF_DB)}/schemas/${encodeURIComponent(SF_SCHEMA)}/agents/HIL_SF_IDEA_API:run`;
+          } else if (interactionMode === 'auto') {
+            finalApiUrl = `${SF_BASE.replace(/\/+$/, '')}/api/v2/databases/${encodeURIComponent(SF_DB)}/schemas/${encodeURIComponent(SF_SCHEMA)}/agents/SF_IDEA_API:run`;
           }
-          else if (interactionMode === "auto") {
-            finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/SF_IDEA_API:run`
-          }
-        }
-
-        // alert(finalApiUrl);
-
-        const headers = {
-          Authorization: `Bearer ${SF_TOKEN}`, 
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-          "Connection": "keep-alive",
-        };
-        const response = await fetch(finalApiUrl, {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify({
-            agent: "D_CAPG_CORTEX_AI_DB.IDEA_REFACTOR_SOL.HIL_SF_IDEA",
-
-            messages: [
-              ...messages.map(msg => ({
-                role: msg.type === "human" ? "user" : "assistant",
-                content: [{ type: "text", text: msg.content }]
-              })),
-              { role: "user", content: [{ type: "text", text: query }] }
-            ],
-
-            context: {
-              warehouse: "W_CAPG_APAC_IND_DEMO_IDEA_REFACTOR_SOL_XS",
-              database: "MY_DB",
-              schema: "PUBLIC"
-            },
-
-            options: {
-              allow_execution: true
-            }
-          }),
-        });
-        console.log('Fetch response:', response);
-        if (!response.ok) {
-          throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
         }
 
-        return response;
-      };
 
-      const response = await retryWithBackoff(() => sendMessage(query));
+          // alert(finalApiUrl);
 
-      // Handle SSE streaming
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      console.log("response:", response); // need to change the below code according to response coming from agents
+          const headers = {
+            Authorization: `Bearer ${SF_TOKEN}`,
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+            "Connection": "keep-alive",
+          };
+          const response = await fetch(finalApiUrl, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({
+              agent: "D_CAPG_CORTEX_AI_DB.IDEA_REFACTOR_SOL.HIL_SF_IDEA",
 
-      // make sure 
-      let lineBuffer = "";
-      let eventDataBuffer = "";
-      console.log("reader:", reader);
-      if (reader) {
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done, value } = await reader.read();
+              messages: [
+                ...messages.map(msg => ({
+                  role: msg.type === "human" ? "user" : "assistant",
+                  content: [{ type: "text", text: msg.content }]
+                })),
+                { role: "user", content: [{ type: "text", text: query }] }
+              ],
 
-          if (value) {
-            lineBuffer += decoder.decode(value, { stream: true });
-          }
-          console.log('Line Buffer:', lineBuffer); // DEBUG: Log current line buffer
-          let eolIndex;
-          // Process all complete lines in the buffer, or the remaining buffer if 'done'
-          while ((eolIndex = lineBuffer.indexOf('\n')) >= 0 || (done && lineBuffer.length > 0)) {
-            let line: string;
-            if (eolIndex >= 0) {
-              line = lineBuffer.substring(0, eolIndex);
-              lineBuffer = lineBuffer.substring(eolIndex + 1);
-            } else { // Only if done and lineBuffer has content without a trailing newline
-              line = lineBuffer;
-              lineBuffer = "";
-            }
+              context: {
+                warehouse: "W_CAPG_APAC_IND_DEMO_IDEA_REFACTOR_SOL_XS",
+                database: "MY_DB",
+                schema: "PUBLIC"
+              },
 
-            if (line.trim() === "") { // Empty line: dispatch event
-              if (eventDataBuffer.length > 0) {
-                // Remove trailing newline before parsing
-                const jsonDataToParse = eventDataBuffer.endsWith('\n') ? eventDataBuffer.slice(0, -1) : eventDataBuffer;
-                console.log('[SSE DISPATCH EVENT]:', jsonDataToParse.substring(0, 200) + "...");
-                if (!jsonDataToParse.includes("[DONE]")) {  // DEBUG
-                  processSseEventData(jsonDataToParse, aiMessageId);
-                }
-                eventDataBuffer = ""; // Reset for next event
+              options: {
+                allow_execution: true
               }
-            } else if (line.startsWith('data:')) {
-              eventDataBuffer += line.substring(5).trimStart() + '\n'; // Add newline as per spec for multi-line data
-            } else if (line.startsWith(':')) {
-              // Comment line, ignore
-            } // Other SSE fields (event, id, retry) can be handled here if needed
+            }),
+          });
+          console.log('Fetch response:', response);
+          if (!response.ok) {
+            throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
           }
 
-          if (done) {
-            // If the loop exited due to 'done', and there's still data in eventDataBuffer
-            // (e.g., stream ended after data lines but before an empty line delimiter)
-            if (eventDataBuffer.length > 0) {
-              const jsonDataToParse = eventDataBuffer.endsWith('\n') ? eventDataBuffer.slice(0, -1) : eventDataBuffer;
-              console.log('[SSE DISPATCH FINAL EVENT]:', jsonDataToParse.substring(0, 200) + "..."); // DEBUG
-              processSseEventData(jsonDataToParse, aiMessageId);
-              eventDataBuffer = ""; // Clear buffer
+          return response;
+        };
+
+        const response = await retryWithBackoff(() => sendMessage(query));
+
+        // Handle SSE streaming
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        console.log("response:", response); // need to change the below code according to response coming from agents
+
+        // make sure 
+        let lineBuffer = "";
+        let eventDataBuffer = "";
+        console.log("reader:", reader);
+        if (reader) {
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (value) {
+              lineBuffer += decoder.decode(value, { stream: true });
             }
-            break; // Exit the while(true) loop
+            console.log('Line Buffer:', lineBuffer); // DEBUG: Log current line buffer
+            let eolIndex;
+            // Process all complete lines in the buffer, or the remaining buffer if 'done'
+            while ((eolIndex = lineBuffer.indexOf('\n')) >= 0 || (done && lineBuffer.length > 0)) {
+              let line: string;
+              if (eolIndex >= 0) {
+                line = lineBuffer.substring(0, eolIndex);
+                lineBuffer = lineBuffer.substring(eolIndex + 1);
+              } else { // Only if done and lineBuffer has content without a trailing newline
+                line = lineBuffer;
+                lineBuffer = "";
+              }
+
+              if (line.trim() === "") { // Empty line: dispatch event
+                if (eventDataBuffer.length > 0) {
+                  // Remove trailing newline before parsing
+                  const jsonDataToParse = eventDataBuffer.endsWith('\n') ? eventDataBuffer.slice(0, -1) : eventDataBuffer;
+                  console.log('[SSE DISPATCH EVENT]:', jsonDataToParse.substring(0, 200) + "...");
+                  if (!jsonDataToParse.includes("[DONE]")) {  // DEBUG
+                    processSseEventData(jsonDataToParse, aiMessageId);
+                  }
+                  eventDataBuffer = ""; // Reset for next event
+                }
+              } else if (line.startsWith('data:')) {
+                eventDataBuffer += line.substring(5).trimStart() + '\n'; // Add newline as per spec for multi-line data
+              } else if (line.startsWith(':')) {
+                // Comment line, ignore
+              } // Other SSE fields (event, id, retry) can be handled here if needed
+            }
+
+            if (done) {
+              // If the loop exited due to 'done', and there's still data in eventDataBuffer
+              // (e.g., stream ended after data lines but before an empty line delimiter)
+              if (eventDataBuffer.length > 0) {
+                const jsonDataToParse = eventDataBuffer.endsWith('\n') ? eventDataBuffer.slice(0, -1) : eventDataBuffer;
+                console.log('[SSE DISPATCH FINAL EVENT]:', jsonDataToParse.substring(0, 200) + "..."); // DEBUG
+                processSseEventData(jsonDataToParse, aiMessageId);
+                eventDataBuffer = ""; // Clear buffer
+              }
+              break; // Exit the while(true) loop
+            }
           }
         }
+
+        setIsLoading(false);
+
+      } catch (error) {
+        console.error("Error:", error);
+        // Update the AI message placeholder with an error message
+        const aiMessageId = Date.now().toString() + "_ai_error";
+        setMessages(prev => [...prev, {
+          type: "ai",
+          content: `Sorry, there was an error processing your request: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          id: aiMessageId
+        }]);
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
-
-    } catch (error) {
-      console.error("Error:", error);
-      // Update the AI message placeholder with an error message
-      const aiMessageId = Date.now().toString() + "_ai_error";
-      setMessages(prev => [...prev, {
-        type: "ai",
-        content: `Sorry, there was an error processing your request: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        id: aiMessageId
-      }]);
-      setIsLoading(false);
-    }
-  }, [processSseEventData]);
+    }, [processSseEventData]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -1067,7 +1067,7 @@ export default function App() {
                             messages={messages}
                             isLoading={isLoading}
                             scrollAreaRef={scrollAreaRef}
-                             onSubmit={(query) => void handleSubmit(query, "defaultModel", "defaultEffort")}
+                            onSubmit={(query) => void handleSubmit(query, "defaultModel", "defaultEffort")}
                             onCancel={handleCancel}
                             displayData={displayData}
                             messageEvents={messageEvents}
