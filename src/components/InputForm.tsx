@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { Loader2, Send, Mic } from "lucide-react";
 

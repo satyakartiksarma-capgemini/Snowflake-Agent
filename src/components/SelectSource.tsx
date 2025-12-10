@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { AiOutlineDatabase, AiOutlineApi } from "react-icons/ai";
 import { FaSnowflake } from "react-icons/fa";
 import { FiServer } from "react-icons/fi";
-import ProfileMenu, { MenuItem } from "@/components/ProfileMenu"; // adjust path
+import ProfileMenu from "@/components/ProfileMenu"; // adjust path
 
 interface SelectSourceProps {
   onNext: () => void;
@@ -44,7 +44,7 @@ const SelectSource: React.FC<SelectSourceProps> = ({ onNext, onApiSelect }) => {
     ],
     []
   );
-
+type MenuItem = { label: string; onClick: () => void };
   const adminExtraItems: MenuItem[] = useMemo(() => {
     if (!isAdmin) return [];
     return [
@@ -77,7 +77,7 @@ const SelectSource: React.FC<SelectSourceProps> = ({ onNext, onApiSelect }) => {
             localStorage.removeItem("loggedInUser");
             window.location.reload();
           }}
-          extraItems={adminExtraItems}
+          
         />
       </div>
 

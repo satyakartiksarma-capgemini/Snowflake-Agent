@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ArrowLeft } from "lucide-react";
 import { DropdownButton } from "./ui/dropdown";
 

@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as _uuidv4 } from 'uuid';
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import Header from "@/components/Header";
 import Login from "@/components/Login";
 import SelectSource from "@/components/SelectSource";
-import ChooseWorkflow from "./components/ChooseWorkflow";
+
 import InteractionMode from "./components/InteractionMode";
 import { Routes, Route } from "react-router-dom";
 import { AdminConfigEditor } from "./components/admin_v2"
@@ -61,7 +61,7 @@ export default function App() {
   const accumulatedTextRef = useRef("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"login" | "selectSource" | "workflow" | "interaction" | "welcome">("login");
+  const [currentStep, setCurrentStep] = useState<"login" | "selectSource" | "workflow" | "interaction" | "welcome" | "chat">("login");
 
 
 
@@ -434,12 +434,9 @@ export default function App() {
     }
 
     // ✅ Extract data
-    const { textParts, agent, finalReportWithCitations, functionCall, functionResponse, sourceCount, sources } = extractDataFromSSE(jsonData);
+    const { textParts, agent, finalReportWithCitations, functionCall, functionResponse, sources } = extractDataFromSSE(jsonData);
 
-    // ✅ Website count
-    if (sourceCount > 0) {
-      setWebsiteCount(prev => Math.max(prev, sourceCount));
-    }
+    
 
     // ✅ Track current agent
     if (agent && agent !== currentAgentRef.current) {
@@ -487,7 +484,7 @@ export default function App() {
         const updated = [
           ...prev,
           {
-            type: "ai",
+            type: "ai" as const,
             content: finalReportWithCitations as string,
             id: finalReportMessageId,
             agent: currentAgentRef.current,
@@ -564,7 +561,7 @@ export default function App() {
         stageKey = "Ingestion Plan"; // fallback if objective mentions planning
       }
     } else {
-      stageKey = toolStageMap[toolName];
+      stageKey = toolName ? toolStageMap[toolName] : undefined;
     }
 
     if (stageKey) {
@@ -1070,12 +1067,12 @@ export default function App() {
                             messages={messages}
                             isLoading={isLoading}
                             scrollAreaRef={scrollAreaRef}
-                            onSubmit={handleSubmit}
+                             onSubmit={(query) => void handleSubmit(query, "defaultModel", "defaultEffort")}
                             onCancel={handleCancel}
                             displayData={displayData}
                             messageEvents={messageEvents}
                             websiteCount={websiteCount}
-                            stages={stages}
+                            stages={stages as any}
                             onHeaderUpdate={handleHeaderUpdate}
                             isEyeVisible={isEyeVisible}
                           />

@@ -23,7 +23,7 @@ interface PipelineSidebarProps {
   stages: Stage[];
 }
 
-const stageIcons: Record<string, JSX.Element> = {
+const stageIcons: Record<string, React.ReactNode> = {
   "Data Discovery": <Search className="w-5 h-5 text-gray-700" />,
   "Schema Check": <Receipt className="w-5 h-5 text-gray-700" />,
   "Data Ingestion": <Database className="w-5 h-5 text-gray-700" />,
