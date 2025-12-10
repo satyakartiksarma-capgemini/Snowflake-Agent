@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_SF_AGENT_AUTO: string;
   readonly VITE_SF_BEARER_TOKEN: string;
   // add more variables as needed
+  
 }
  
 interface ImportMeta {
