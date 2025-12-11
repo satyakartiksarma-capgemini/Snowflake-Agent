@@ -34,6 +34,15 @@ jobs:
         with:
           name: node-app
           path: .
+        env:
+          VITE_SF_BEARER_TOKEN: ${{ secrets.VITE_SF_BEARER_TOKEN }}
+          VITE_SF_BASE_URL: ${{ secrets.VITE_SF_BASE_URL }}
+          VITE_SF_DATABASE: ${{ secrets.VITE_SF_DATABASE }}
+          VITE_SF_SCHEMA: ${{ secrets.VITE_SF_SCHEMA }}
+          VITE_SF_WAREHOUSE: ${{ secrets.VITE_SF_WAREHOUSE }}
+          VITE_SF_AGENT_DEFAULT: ${{ secrets.VITE_SF_AGENT_DEFAULT }}
+          VITE_SF_AGENT_HUMAN: ${{ secrets.VITE_SF_AGENT_HUMAN }}
+          VITE_SF_AGENT_AUTO: ${{ secrets.VITE_SF_AGENT_AUTO }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -52,4 +61,5 @@ jobs:
           app-name: 'Snowflake-Agent'
           slot-name: 'Production'
           package: .
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D73F8C1356FC4147845E324D38A852D6 }}
