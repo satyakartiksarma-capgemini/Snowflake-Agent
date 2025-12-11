@@ -8,17 +8,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Uncomment if your secrets are defined under a GitHub Environment (e.g., "production")
+    # environment: production
     permissions:
       contents: read
  
-    
+    # Make VITE_* values available to the build (this is the critical part for Vite)
     env:
       VITE_SF_BEARER_TOKEN: ${{ secrets.VITE_SF_BEARER_TOKEN }}
       VITE_SF_BASE_URL:     ${{ secrets.VITE_SF_BASE_URL }}
       VITE_SF_DATABASE:     ${{ secrets.VITE_SF_DATABASE }}
       VITE_SF_SCHEMA:       ${{ secrets.VITE_SF_SCHEMA }}
       VITE_SF_WAREHOUSE:    ${{ secrets.VITE_SF_WAREHOUSE }}
-      VITE_SF_AGENT_DEFAULT: ${{ secrets.VITE_SF_AGENT_DEFAULT }}
+      VITE_SF_AGENT_DEFAULT:${{ secrets.VITE_SF_AGENT_DEFAULT }}
       VITE_SF_AGENT_HUMAN: ${{ secrets.VITE_SF_AGENT_HUMAN }}
       VITE_SF_AGENT_AUTO:   ${{ secrets.VITE_SF_AGENT_AUTO }}
  
@@ -28,9 +30,19 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'   # safer LTS for most CI images and tools
+          node-version: '20.x'
  
-      - name: Install & Build (Vite will read VITE_* here)
+      # --- Diagnostics: prove env is available at build time ---
+      - name: Show env presence (masked)
+        run: |
+          # mask the values to be safe
+          for v in VITE_SF_BEARER_TOKEN VITE_SF_BASE_URL VITE_SF_DATABASE VITE_SF_SCHEMA VITE_SF_WAREHOUSE VITE_SF_AGENT_DEFAULT VITE_SF_AGENT_HUMAN VITE_SF_AGENT_AUTO; do
+            echo "::add-mask::${!v}"
+            len=$( (echo -n "${!v}" | wc -c) || true )
+            echo "$v length: $len"
+          done
+ 
+      - name: Install & Build (Vite reads VITE_* here)
         run: |
           npm ci
           npm run build
