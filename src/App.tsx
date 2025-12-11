@@ -114,6 +114,7 @@ export default function App() {
   useEffect(() => {
     const saved = localStorage.getItem('conversation');
     if (saved) setMessages(JSON.parse(saved));
+    console.log('VITE_SF_BASE_URL', import.meta.env.VITE_SF_BASE_URL);
   }, []);
 
 
