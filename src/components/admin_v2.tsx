@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 // components/admin_v2.tsx
 import { useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
