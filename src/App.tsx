@@ -202,39 +202,39 @@ export default function App() {
   // const checkBackendHealth = async (): Promise<boolean> => {
   //   try {
   //     // Use the docs endpoint or root endpoint to check if backend is ready
-      
+
 
   //     const headers = {
   //       Authorization: "Bearer ", // Replace with secure token handling
   //       "Content-Type": "application/json",
   //       Accept: "text/event-stream"
   //     };
-      // const response = await fetch(url, {
-      //   method: "POST",
-      //   headers: headers,
-      //   body: JSON.stringify({
-      //     agent: "SNOWFLAKE_INTELLIGENCE.AGENTS.HIL_SF_IDEA",
-      //     messages: [{
-      //       role: "user",
-      //       content: [{
-      //         type: "text",
+  // const response = await fetch(url, {
+  //   method: "POST",
+  //   headers: headers,
+  //   body: JSON.stringify({
+  //     agent: "SNOWFLAKE_INTELLIGENCE.AGENTS.HIL_SF_IDEA",
+  //     messages: [{
+  //       role: "user",
+  //       content: [{
+  //         type: "text",
 
-      //       }]
-      //     }],
+  //       }]
+  //     }],
 
-      //     context: {
-      //       warehouse: "MY_WH",
-      //       database: "MY_DB",
-      //       schema: "PUBLIC"
-      //     },
+  //     context: {
+  //       warehouse: "MY_WH",
+  //       database: "MY_DB",
+  //       schema: "PUBLIC"
+  //     },
 
-      //     options: {
-      //       allow_execution: true
-      //     }
+  //     options: {
+  //       allow_execution: true
+  //     }
 
-      //   }),
-      // });
-      // return response.ok;
+  //   }),
+  // });
+  // return response.ok;
   //   } catch (error) {
   //     console.log("Backend not ready yet:", error);
   //     return false;
@@ -437,7 +437,7 @@ export default function App() {
     // ✅ Extract data
     const { textParts, agent, finalReportWithCitations, functionCall, functionResponse, sources } = extractDataFromSSE(jsonData);
 
-    
+
 
     // ✅ Track current agent
     if (agent && agent !== currentAgentRef.current) {
@@ -701,7 +701,7 @@ export default function App() {
         // alert(finalApiUrl);
 
         const headers = {
-          Authorization: `Bearer ${SF_TOKEN}`, 
+          Authorization: `Bearer ${SF_TOKEN}`,
           "Content-Type": "application/json",
           Accept: "text/event-stream",
           "Connection": "keep-alive",
@@ -953,14 +953,18 @@ export default function App() {
           path="/admin"
           element={
             <AdminConfigEditor
+              baseUrl={import.meta.env.VITE_SF_BASE_URL}
+              database={import.meta.env.VITE_SF_DATABASE}
+              schema={import.meta.env.VITE_SF_SCHEMA}
+              warehouse={import.meta.env.VITE_SF_WAREHOUSE}
+              token={import.meta.env.VITE_SF_BEARER_TOKEN}
+
+
               onClose={() => {
-                // Go back if possible, else go home
-                if (window.history.length > 1) {
-                  window.history.back();
-                } else {
-                  window.location.href = "/";
-                }
+                if (window.history.length > 1) window.history.back();
+                else window.location.href = "/";
               }}
+
             />
           }
         />
@@ -1068,7 +1072,7 @@ export default function App() {
                             messages={messages}
                             isLoading={isLoading}
                             scrollAreaRef={scrollAreaRef}
-                             onSubmit={(query) => void handleSubmit(query, "defaultModel", "defaultEffort")}
+                            onSubmit={(query) => void handleSubmit(query, "defaultModel", "defaultEffort")}
                             onCancel={handleCancel}
                             displayData={displayData}
                             messageEvents={messageEvents}
