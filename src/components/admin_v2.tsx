@@ -1,5 +1,7 @@
+
 // @ts-nocheck
 // components/admin_v2.tsx
+
 import { useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { yaml as yamlLang } from "@codemirror/lang-yaml";
@@ -17,31 +19,26 @@ type ViewMode = "table" | "yaml";
 /** ===== Props ===== */
 type AdminProps = {
   onClose: () => void;
-
-  // ✅ new: prefer values passed from App.tsx
+  // ✅ prefer values passed from App.tsx
   baseUrl?: string;
   database?: string;
   schema?: string;
   warehouse?: string;
   token?: string;
-
   stage?: string; // optional override (defaults to AGENT_STAGE)
 };
 
 /** ===== Utility ===== */
-const safe = (v: unknown) =>
-  typeof v === "string" ? v.trim() : "";
+const safe = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 /** ===== Component ===== */
 export function AdminConfigEditor(props: AdminProps) {
-  // ---- Env / Config: props first, then env fallback (no warnings) ----
+  // ---- Env / Config: props first, then env fallback ----
   const BASE_URL = (safe(props.baseUrl) || safe(import.meta.env.VITE_SF_BASE_URL)).replace(/\/+$/, "");
   const DATABASE = safe(props.database) || safe(import.meta.env.VITE_SF_DATABASE);
   const SCHEMA = safe(props.schema) || safe(import.meta.env.VITE_SF_SCHEMA);
   const WAREHOUSE = safe(props.warehouse) || safe(import.meta.env.VITE_SF_WAREHOUSE) || undefined;
   const TOKEN = safe(props.token) || safe(import.meta.env.VITE_SF_BEARER_TOKEN);
-
-  // Stage stays like before unless you want to pass it as a prop
   const STAGE = props.stage || "AGENT_STAGE";
 
   // Build Snowflake API details
@@ -52,14 +49,28 @@ export function AdminConfigEditor(props: AdminProps) {
     Accept: "application/json",
   };
 
-  // ===== Helpers =====
+  /** ===== Helpers ===== */
+
+  // Single normalization for ANY path that comes from LIST, user selection, or code.
+  function normalizePath(input: string): string {
+    let p = (input || "").trim().replace(/^'+|'+$/g, "");
+    const fullPrefix = `@${DATABASE}.${SCHEMA}.${STAGE}/`;
+    if (p.startsWith(fullPrefix)) p = p.slice(fullPrefix.length);
+    const seg0 = p.split("/")[0] ?? "";
+    if (seg0.toLowerCase() === STAGE.toLowerCase()) {
+      p = p.split("/").slice(1).join("/");
+    }
+    while (p.startsWith("/")) p = p.slice(1);
+    return p;
+  }
+
   function unescapeHtml(s: string): string {
     return (s || "")
-      .replaceAll("&amp;", "&")
       .replaceAll("&lt;", "<")
       .replaceAll("&gt;", ">")
       .replaceAll("&quot;", '"')
-      .replaceAll("&#39;", "'");
+      .replaceAll("&#39;", "'")
+      .replaceAll("&amp;", "&");
   }
 
   async function runSql(
@@ -83,6 +94,7 @@ export function AdminConfigEditor(props: AdminProps) {
       method: "POST",
       headers: SF_HEADERS,
       body: JSON.stringify(payload),
+      cache: "no-store"
     });
     if (!resp.ok) {
       const msg = await resp.text().catch(() => "");
@@ -90,14 +102,15 @@ export function AdminConfigEditor(props: AdminProps) {
     }
     const data = await resp.json();
 
-    if (data?.data) return data.data; // sync result
+    // Synchronous result
+    if (data?.data) return data.data;
 
+    // Otherwise poll once (as in your original)
     const statusUrl: string | undefined = data?.statementStatusUrl;
     if (!statusUrl) {
       throw new Error(`No data and no statusUrl:\n${JSON.stringify(data, null, 2)}`);
     }
-
-    const pollResp = await fetch(BASE_URL + statusUrl, { headers: SF_HEADERS });
+    const pollResp = await fetch(BASE_URL + statusUrl, { headers: SF_HEADERS, cache: "no-store" });
     if (!pollResp.ok) {
       const msg = await pollResp.text().catch(() => "");
       throw new Error(`SQL GET status failed: ${pollResp.status} ${msg}`);
@@ -107,7 +120,9 @@ export function AdminConfigEditor(props: AdminProps) {
     return j.data;
   }
 
-  // ===== SQL helpers (same as your original) =====
+  /** ===== SQL helpers (existing and new) ===== */
+
+  // Whole-file format used for reading entire file content as $1
   async function ensureWholeFileFormat() {
     const sql = `
       create or replace file format ${SCHEMA}.FF_WHOLEFILE
@@ -119,67 +134,96 @@ export function AdminConfigEditor(props: AdminProps) {
     await runSql(sql);
   }
 
+  // NEW: Table to hold YAML content for each path (used to write back to stage)
+  async function ensureConfigTable() {
+    const sql = `
+      create table if not exists ${SCHEMA}.CONFIG_FILES (
+        path string primary key,
+        content string,
+        updated_at timestamp_ntz default current_timestamp()
+      );
+    `;
+    await runSql(sql);
+  }
+
+  // NEW: Upsert content for a given normalized path
+  async function upsertConfigContent(path: string, content: string) {
+    // Escape single quotes for SQL literal
+    const escaped = content.replace(/'/g, "''");
+    const escapedPath = path.replace(/'/g, "''");
+    const sql = `
+      merge into ${SCHEMA}.CONFIG_FILES t
+      using (select '${escapedPath}' as path, '${escaped}' as content) s
+      on t.path = s.path
+      when matched then update set content = s.content, updated_at = current_timestamp()
+      when not matched then insert (path, content) values (s.path, s.content);
+    `;
+    await runSql(sql);
+  }
+
+  // NEW: Materialize table row as a single-record file at EXACT same stage/path
+  async function copyTableRowToStage(path: string) {
+    const escapedPath = path.replace(/'/g, "''");
+    const sql = `
+      copy into @${DATABASE}.${SCHEMA}.${STAGE}/${escapedPath}
+      from (
+        select content
+        from ${SCHEMA}.CONFIG_FILES
+        where path = '${escapedPath}'
+      )
+      file_format = (type = csv field_delimiter = '\\u0001' record_delimiter = 'NONE' skip_header = 0)
+      overwrite = true;
+    `;
+    await runSql(sql);
+  }
+
+  // LIST files from the stage and produce normalized relative paths (only .yml/.yaml)
   async function listStageFiles(): Promise<string[]> {
     const sql = `LIST @${DATABASE}.${SCHEMA}.${STAGE}`;
     const rows = await runSql(sql);
-
     return (rows ?? [])
       .map((r: any[]) => r?.[0])
       .filter(Boolean)
-      // ✅ strip leading/trailing single quotes Snowflake often returns
-      .map((name: string) => name.replace(/^'+|'+$/g, ""))
-      // ✅ normalize to a path relative to the stage root
-      .map((name: string) => {
-        // remove leading '@db.schema.stage/' if present
-        const fullPrefix = `@${DATABASE}.${SCHEMA}.${STAGE}/`;
-        if (name.startsWith(fullPrefix)) return name.slice(fullPrefix.length);
-
-        // remove leading '<stage>/' if present (e.g., 'agent_stage/...') — case-insensitive
-        const maybeStage = name.match(/^([^/]+)\//)?.[1] ?? "";
-        if (maybeStage.toLowerCase() === STAGE.toLowerCase()) {
-          return name.slice(maybeStage.length + 1);
-        }
-
-        // already a relative path (e.g., 'configs/dq_checks.yaml' or 'config_api.yaml')
-        return name;
-      })
+      .map((name: string) => normalizePath(name))
       .filter((name: string) => {
         const lower = name.toLowerCase();
         return lower.endsWith(".yml") || lower.endsWith(".yaml");
       });
-
   }
 
+  // Read entire file content from stage using the whole-file format
+
   async function readStageFileText(filename: string): Promise<string> {
-    let safeName = filename.trim().replace(/^'+|'+$/g, "");
+    const safeName = normalizePath(filename);
+    if (!safeName) throw new Error(`Resolved empty path from '${filename}' after normalization.`);
 
-    const fullPrefix = `@${DATABASE}.${SCHEMA}.${STAGE}/`;
-    if (safeName.startsWith(fullPrefix)) {
-      safeName = safeName.slice(fullPrefix.length);
+    // 1) Try table first (latest saved content)
+    const escapedPath = safeName.replace(/'/g, "''");
+    const tableSql = `
+    select content
+    from ${SCHEMA}.CONFIG_FILES
+    where path = '${escapedPath}'
+    limit 1;
+  `;
+    const tableRows = await runSql(tableSql);
+    if (tableRows?.[0]?.[0]) {
+      return unescapeHtml(tableRows[0][0]);
     }
 
-    const parts = safeName.split("/");
-    if (parts[0]?.toLowerCase() === STAGE.toLowerCase()) {
-      safeName = parts.slice(1).join("/") || ""; // drop leading stage folder
-    }
-
-    if (!safeName) {
-      throw new Error(`Resolved empty path from '${filename}' after normalization.`);
-    }
-
-    const sql = `
+    // 2) Fall back to reading the original stage file
+    const stageSql = `
     select $1 as content
     from @${DATABASE}.${SCHEMA}.${STAGE}/${safeName} (file_format => ${SCHEMA}.FF_WHOLEFILE);
   `;
-    const rows = await runSql(sql);
-
+    const rows = await runSql(stageSql);
     if (!rows?.[0]?.[0]) {
       throw new Error(`No content returned for ${safeName}. Check path and FF_WHOLEFILE.`);
     }
     return unescapeHtml(rows[0][0]);
   }
 
-  // ===== UI state (unchanged) =====
+
+  /** ===== UI state ===== */
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
@@ -241,8 +285,9 @@ export function AdminConfigEditor(props: AdminProps) {
   const loadFile = async (filename: string) => {
     setLoadingDoc(true);
     try {
-      const content = await readStageFileText(filename);
-      setSelectedFile(filename);
+      const normalized = normalizePath(filename);
+      const content = await readStageFileText(normalized);
+      setSelectedFile(normalized);
       setFileContent(content);
       parseYamlToRows(content);
       setViewMode("table");
@@ -253,20 +298,43 @@ export function AdminConfigEditor(props: AdminProps) {
     }
   };
 
+  // ✨ NEW SAVE: writes directly to Snowflake (table -> stage overwrite), then refreshes UI.
   const save = async () => {
     if (!selectedFile) return;
     setSaving(true);
     try {
+      const path = normalizePath(selectedFile);
       const toSave = viewMode === "table" ? convertRowsToYaml(rows) : fileContent;
-      const res = await fetch(`/api/admin/config/${encodeURIComponent(selectedFile)}`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toSave),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as any)?.message ?? "Save failed");
+
+      await ensureWholeFileFormat();
+      await ensureConfigTable();
+
+      // 1) Persist to table
+      await upsertConfigContent(path, toSave);
+
+      // 2) Overwrite file at EXACT same stage path
+      await copyTableRowToStage(path);
+
+      // 3) Update local editor state
       setFileContent(toSave);
+
+      // 4) Refresh left pane list and re-read file from stage to reflect true bytes on disk
+      setLoadingFiles(true);
+      const items = await listStageFiles();
+      setFiles(items);
+      setLoadingFiles(false);
+
+      setLoadingDoc(true);
+      const fresh = await readStageFileText(path);
+      setSelectedFile(path);
+      setFileContent(fresh);
+      parseYamlToRows(fresh);
+      setLoadingDoc(false);
+
+      // setTimeout(() => {
+      //   window.location.reload();
+      // }, 150);
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -275,13 +343,15 @@ export function AdminConfigEditor(props: AdminProps) {
   };
 
   const addRow = () =>
-    setRows((prev) => [...prev, { ruleName: "", enabled: false, description: "" }]);
+    setRows((prev) => [...prev, { ruleName: `new_rule_${prev.length + 1}`, enabled: false, description: "" }]);
+
   const deleteRow = (index: number) =>
     setRows((prev) => {
       const updated = [...prev];
       updated.splice(index, 1);
       return updated;
     });
+
   const updateRow = (index: number, field: keyof RuleRow, value: RuleRow[keyof RuleRow]) =>
     setRows((prev) => {
       const updated = [...prev];
@@ -289,7 +359,7 @@ export function AdminConfigEditor(props: AdminProps) {
       return updated;
     });
 
-  // ===== Render (same layout you wanted) =====
+  // ===== Render =====
   return (
     <div className="fixed inset-0 z-50 bg-white overflow-auto p-4">
       <div className="flex items-center justify-between p-2 border-b border-gray-200">
@@ -365,8 +435,7 @@ export function AdminConfigEditor(props: AdminProps) {
               onChange={(value) => {
                 setFileContent(value ?? "");
                 try {
-                  const parsedRows = parseYamlToRows(value ?? "");
-                  // parseYamlToRows already sets rows, but we call for validation
+                  parseYamlToRows(value ?? "");
                 } catch { }
               }}
               height="70vh"
@@ -424,6 +493,7 @@ export function AdminConfigEditor(props: AdminProps) {
                   ))}
                 </tbody>
               </table>
+
               <div className="mt-3 flex items-center justify-center">
                 <button
                   onClick={addRow}
