@@ -162,33 +162,35 @@ export function AdminConfigEditor(props: AdminProps) {
   }
 
   // NEW: Materialize table row as a single-record file at EXACT same stage/path
+
   async function copyTableRowToStage(path: string) {
     const escapedPath = path.replace(/'/g, "''");
+
     const sql = `
-      copy into @${DATABASE}.${SCHEMA}.${STAGE}/${escapedPath}
-      from (
-        select content
-        from ${SCHEMA}.CONFIG_FILES
-        where path = '${escapedPath}'
-      )
-      file_format = (type = csv field_delimiter = '\\u0001' record_delimiter = 'NONE' skip_header = 0)
-      overwrite = true;
-    `;
+    copy into @${DATABASE}.${SCHEMA}.${STAGE}/"${escapedPath}"
+    from (
+      select content 
+      from ${SCHEMA}.CONFIG_FILES 
+      where path = '${escapedPath}'
+    )
+    file_format = (type = csv field_delimiter='\\u0001' record_delimiter='NONE' skip_header=0)
+    overwrite = true;
+  `;
+
     await runSql(sql);
   }
+
 
   // LIST files from the stage and produce normalized relative paths (only .yml/.yaml)
   async function listStageFiles(): Promise<string[]> {
     const sql = `LIST @${DATABASE}.${SCHEMA}.${STAGE}`;
     const rows = await runSql(sql);
+    const re = /^(dq_config|config_s|config_agg).*\.ya?ml$/i;
     return (rows ?? [])
       .map((r: any[]) => r?.[0])
       .filter(Boolean)
       .map((name: string) => normalizePath(name))
-      .filter((name: string) => {
-        const lower = name.toLowerCase();
-        return lower.endsWith(".yml") || lower.endsWith(".yaml");
-      });
+      .filter((name: string) => re.test(name));
   }
 
   // Read entire file content from stage using the whole-file format

@@ -689,6 +689,9 @@ export default function App() {
         if (finalApiUrl === "snowflake") {
           finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/HIL_SF_IDEA:run`
         }
+        if (finalApiUrl === "streaming") {
+          finalApiUrl = `${SF_BASE}/api/v2/databases/IDEA_2_DB/schemas/public/agents/IDEA_STREAMING_API:run`
+        }
         else if (finalApiUrl === "realtime") {
           if (interactionMode === "human") {
             finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/HIL_SF_IDEA_API:run`
@@ -710,7 +713,7 @@ export default function App() {
           method: "POST",
           headers: headers,
           body: JSON.stringify({
-            agent: "D_CAPG_CORTEX_AI_DB.IDEA_REFACTOR_SOL.HIL_SF_IDEA",
+            
 
             messages: [
               ...messages.map(msg => ({
@@ -720,11 +723,7 @@ export default function App() {
               { role: "user", content: [{ type: "text", text: query }] }
             ],
 
-            context: {
-              warehouse: "W_CAPG_APAC_IND_DEMO_IDEA_REFACTOR_SOL_XS",
-              database: "MY_DB",
-              schema: "PUBLIC"
-            },
+            
 
             options: {
               allow_execution: true

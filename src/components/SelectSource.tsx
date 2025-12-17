@@ -27,7 +27,7 @@ const SelectSource: React.FC<SelectSourceProps> = ({ onNext, onApiSelect }) => {
         name: "Custom Source",
         description: "Stream data in real time by integrating with API",
         icon: <FiServer className="text-[#1b5e92] text-2xl" />,
-        apiUrl: "https://dummyapi.com/custom",
+        apiUrl: "streaming",
       },
       {
         name: "Databases",
