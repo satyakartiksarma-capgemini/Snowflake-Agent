@@ -690,7 +690,7 @@ export default function App() {
           finalApiUrl = `${SF_BASE}/api/v2/databases/${SF_DB}/schemas/${SF_SCHEMA}/agents/HIL_SF_IDEA:run`
         }
         if (finalApiUrl === "streaming") {
-          finalApiUrl = `${SF_BASE}/api/v2/databases/IDEA_2_DB/schemas/public/agents/IDEA_STREAMING_API:run`
+          finalApiUrl = `https://pihjdmo-sfcoecortex.snowflakecomputing.com/api/v2/databases/SNOWFLAKE_INTELLIGENCE/schemas/AGENTS/agents/IDEA_STREAMING_API:run`
         }
         else if (finalApiUrl === "realtime") {
           if (interactionMode === "human") {
